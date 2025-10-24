@@ -1,0 +1,30 @@
+name: Semantic Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  semantic-release:
+    uses: CalebSargeant/reusable-workflows/.github/workflows/semantic-release.yaml@6484b8a3f28aef6714141c6c1ff5cc3fa38ab9cf # v1.0.1
+    with:
+      bump: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.bump || '' }}
+      working_directory: '.'
+    secrets:
+      APP_ID: ${{ secrets.RELEASE_APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+    permissions:
+      contents: write
+      id-token: write
