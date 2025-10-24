@@ -1,8 +1,8 @@
 <h1 align="center">
-  <img src="logo.png" alt="nmap-prometheus-exporter Logo" width="150" />
+  <img src="logo.png" alt="nmap-exporter Logo" width="150" />
 </h1>
 
-# nmap-prometheus-exporter
+# nmap-exporter
 
 **Description**:
 
@@ -30,31 +30,31 @@ Before running the Docker application, ensure you have the following prerequisit
 1. **Clone this repository** to your local machine:
 
    ```bash
-   git clone https://github.com/your-username/nmap-prometheus-exporter.git
+git clone https://github.com/your-username/nmap-exporter.git
    ```
 
 2.  **Navigate to the project directory**:
     
     
-    `cd nmap-prometheus-exporter` 
+`cd nmap-exporter` 
     
 3.  Create a `.env` file in the project directory with your environment variables. See the example in the `.env` section below.
 
 
 4.  **Build the Docker image**:
     
-    `docker-compose build` 
+`docker compose build` 
     
 5.  **Start the Docker container**:
     
-    `docker-compose up -d` 
+`docker compose up -d` 
     
 6.  **Access Prometheus metrics** at `http://localhost:9808/metrics` (assuming you are running this on your local machine). Adjust the URL as needed based on your environment.
     
 7.  To stop and remove the container, use the following command:
     
     
-    `docker-compose down` 
+`docker compose down` 
     
 
 ### Environment Variables (`.env` file)

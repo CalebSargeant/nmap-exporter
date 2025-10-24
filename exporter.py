@@ -35,60 +35,59 @@ def main():
                 missing_vars = [var for var in required_env_vars if os.getenv(var) is None]
                 
                 if missing_vars:
-                    # Handle the case where some Azure environment variables are missing
                     error_message = f"The following environment variables are missing: {', '.join(missing_vars)}"
                     raise EnvironmentError(error_message)
                 else:
                     target_file = os.getenv('TARGET_FILE', '/app/portscanip.nmap')
-                    targets = fetch_ips_from_file(target_file)
+                    targets_list = fetch_ips_from_file(target_file)
+                    # dedupe, drop empties and join as space-separated hosts
+                    targets = " ".join(sorted({t.strip() for t in targets_list if t and t.strip()}))
 
             elif target_source == "azure":
-                #required_env_vars = ['AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET', 'AZURE_TENANT_ID']
                 required_env_vars = ['AZURE_CREDENTIALS']
                 missing_vars = [var for var in required_env_vars if os.getenv(var) is None]
 
                 if missing_vars:
-                    # Handle the case where some Azure environment variables are missing
                     error_message = f"The following Azure environment variables are missing: {', '.join(missing_vars)}"
                     raise EnvironmentError(error_message)
                 else:
                     azure_credentials_json = os.getenv('AZURE_CREDENTIALS', '[]')
-                    # Use the function from the modules directory
                     azure_targets = fetch_azure_ips(azure_credentials_json)
-                    # space seperated string
-                    targets = " ".join(azure_targets)
+                    targets = " ".join(sorted(set(azure_targets)))
  
             elif target_source == "aws":  # Add support for AWS as a target source
                 required_env_vars = ['AWS_CREDENTIALS']
                 missing_vars = [var for var in required_env_vars if os.getenv(var) is None]
 
                 if missing_vars:
-                    # Handle the case where some Azure environment variables are missing
-                    error_message = f"The following Azure environment variables are missing: {', '.join(missing_vars)}"
+                    error_message = f"The following AWS environment variables are missing: {', '.join(missing_vars)}"
                     raise EnvironmentError(error_message)
 
                 else:
-                    # Retrieve AWS credentials from environment variables
                     aws_credentials_json = os.getenv('AWS_CREDENTIALS', '[]')
-                    # Use the function from the modules directory
                     aws_targets = fetch_aws_ips(aws_credentials_json)
-                    # space seperated string
-                    targets = " ".join(aws_targets)
+                    targets = " ".join(sorted(set(aws_targets)))
 
             else:
-                # Handle the case when the target source is neither "file" nor "azure"
                 logger.error("Invalid target source specified: %s", target_source)
-                # Exit with an error code
                 sys.exit(1)
 
-            logger.info("Scanning targets: %s", targets)
-            try:
-                nm.scan(targets)
-                expose_nmap_scan_results(nm)
-                expose_nmap_scan_stats(nm)
-                logger.info("Scan completed successfully")
-            except nmap.nmap.PortScannerError as e:
-                logger.error("Nmap scan failed: %s", str(e))
+            # Skip scan if no targets
+            if not targets:
+                logger.warning("No targets resolved; skipping scan cycle")
+            else:
+                logger.info("Scanning targets: %s", targets)
+                try:
+                    nmap_ports = os.getenv('NMAP_PORTS')  # e.g. "22,80,443" or "1-1024"
+                    nmap_args = os.getenv('NMAP_ARGUMENTS', '-Pn -T4')
+                    nm.scan(hosts=targets, ports=nmap_ports if nmap_ports else None, arguments=nmap_args)
+                    expose_nmap_scan_results(nm)
+                    expose_nmap_scan_stats(nm)
+                    logger.info("Scan completed successfully")
+                except nmap.PortScannerError as e:
+                    logger.error("Nmap scan failed: %s", str(e))
+                except Exception as e:
+                    logger.error("Unexpected error during scan: %s", str(e))
 
             scan_frequency = float(os.getenv('SCAN_FREQUENCY', '36000'))
             logger.info("Sleeping for %s seconds", scan_frequency)
@@ -96,7 +95,6 @@ def main():
 
     except KeyboardInterrupt:
         logger.info("Received KeyboardInterrupt. Exiting.")
-        # Exit gracefully
         sys.exit(0)
     except Exception as e:
         logger.error("An unexpected error occurred: %s", str(e))
