@@ -70,8 +70,15 @@ Configuration (env vars)
   ```bash path=null start=null
   # Required depending on source
   TARGET_SOURCE=file|azure|aws
-  SCAN_FREQUENCY=36000     # seconds; lower for dev
+  SCAN_FREQUENCY=36000     # seconds; lower for dev (see timing guidelines below)
   EXPORTER_PORT=9808
+  ```
+- Scanning behavior (new)
+  ```bash path=null start=null
+  NMAP_ARGUMENTS="-Pn -T4 -sV"  # Default includes service detection (-sV)
+  NMAP_PORTS=               # Optional: e.g. "22,80,443" (defaults to top 1000 common ports)
+  NMAP_BATCH_SIZE=50        # Hosts per batch (default: 50)
+  NMAP_CONCURRENT_BATCHES=4 # Concurrent batches (default: 4)
   ```
 - file source
   ```bash path=null start=null
@@ -89,10 +96,12 @@ Configuration (env vars)
 
 Prometheus integration
 
-- Scrape config example
+- See `prometheus-config-example.yml` for detailed scrape configuration
+- Quick example
   ```yaml path=null start=null
   - job_name: nmap
     scrape_interval: 60s
+    scrape_timeout: 30s
     metrics_path: /metrics
     static_configs:
       - targets: ['<exporter-host>:9808']
@@ -107,7 +116,27 @@ Observability tips
   nmap_scan_results
   # Scan stats (labels embedded as Info kv pairs)
   nmap_scan_stats
+  # NEW: Observability metrics
+  nmap_target_count              # Number of targets discovered
+  nmap_scan_duration_seconds     # Last scan duration
+  nmap_failed_scans_total        # Counter of failed batches
+  nmap_successful_scans_total    # Counter of successful batches
   ```
+
+Scan timing for large deployments
+
+- For ~700 hosts scanning top 1000 ports with -sV (service detection):
+  - Expected duration: 30-60 minutes per scan cycle
+  - Batch size 50, concurrent batches 4: ~14 batches total
+  - Each batch: ~2-4 minutes depending on network and responsive hosts
+- Recommended SCAN_FREQUENCY:
+  - Hourly: `SCAN_FREQUENCY=3600` (tight, ensure scans complete in time)
+  - Every 2 hours: `SCAN_FREQUENCY=7200` (safer, allows buffer)
+  - Daily: `SCAN_FREQUENCY=86400` (conservative)
+- Tuning for performance:
+  - Increase NMAP_CONCURRENT_BATCHES (4→8) if you have CPU/network headroom
+  - Adjust NMAP_BATCH_SIZE (50→100) for fewer, larger batches
+  - Use NMAP_PORTS to scan specific ports only if full scan isn't needed
 
 CI/CD
 

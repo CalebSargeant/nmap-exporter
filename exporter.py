@@ -7,12 +7,34 @@ import os
 import json
 import nmap
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from modules.ip_fetcher import fetch_azure_ips, fetch_ips_from_file, fetch_aws_ips
-from modules.prometheus_format import expose_nmap_scan_results, expose_nmap_scan_stats, start_prometheus_server
+from modules.prometheus_format import (
+    expose_nmap_scan_results, 
+    expose_nmap_scan_stats, 
+    start_prometheus_server,
+    set_target_count,
+    set_scan_duration,
+    increment_failed_scans,
+    increment_successful_scans
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Scan a batch of targets
+def scan_batch(batch_targets, nm, nmap_ports, nmap_args):
+    """Scan a batch of targets and return results"""
+    targets_str = " ".join(batch_targets)
+    logger.info(f"Scanning batch of {len(batch_targets)} targets")
+    try:
+        nm_instance = nmap.PortScanner()
+        nm_instance.scan(hosts=targets_str, ports=nmap_ports if nmap_ports else None, arguments=nmap_args)
+        return nm_instance, None
+    except Exception as e:
+        logger.error(f"Batch scan failed: {str(e)}")
+        return None, str(e)
 
 
 # Main function
@@ -75,19 +97,54 @@ def main():
             # Skip scan if no targets
             if not targets:
                 logger.warning("No targets resolved; skipping scan cycle")
+                set_target_count(0)
             else:
-                logger.info("Scanning targets: %s", targets)
-                try:
-                    nmap_ports = os.getenv('NMAP_PORTS')  # e.g. "22,80,443" or "1-1024"
-                    nmap_args = os.getenv('NMAP_ARGUMENTS', '-Pn -T4')
-                    nm.scan(hosts=targets, ports=nmap_ports if nmap_ports else None, arguments=nmap_args)
-                    expose_nmap_scan_results(nm)
-                    expose_nmap_scan_stats(nm)
-                    logger.info("Scan completed successfully")
-                except nmap.PortScannerError as e:
-                    logger.error("Nmap scan failed: %s", str(e))
-                except Exception as e:
-                    logger.error("Unexpected error during scan: %s", str(e))
+                target_list = targets.split()
+                target_count = len(target_list)
+                set_target_count(target_count)
+                logger.info(f"Discovered {target_count} targets to scan")
+                
+                # Configure batch scanning
+                batch_size = int(os.getenv('NMAP_BATCH_SIZE', '50'))  # Default 50 hosts per batch
+                max_workers = int(os.getenv('NMAP_CONCURRENT_BATCHES', '4'))  # Default 4 concurrent batches
+                nmap_ports = os.getenv('NMAP_PORTS')  # e.g. "22,80,443" or "1-1024"
+                nmap_args = os.getenv('NMAP_ARGUMENTS', '-Pn -T4 -sV')  # Added -sV for service detection
+                
+                # Split targets into batches
+                batches = [target_list[i:i + batch_size] for i in range(0, target_count, batch_size)]
+                logger.info(f"Split {target_count} targets into {len(batches)} batches (size: {batch_size}, concurrent: {max_workers})")
+                
+                scan_start_time = time.time()
+                successful_batches = 0
+                failed_batches = 0
+                
+                # Scan batches concurrently
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {executor.submit(scan_batch, batch, nm, nmap_ports, nmap_args): idx 
+                              for idx, batch in enumerate(batches)}
+                    
+                    for future in as_completed(futures):
+                        batch_idx = futures[future]
+                        try:
+                            nm_result, error = future.result()
+                            if nm_result:
+                                expose_nmap_scan_results(nm_result)
+                                expose_nmap_scan_stats(nm_result)
+                                successful_batches += 1
+                                increment_successful_scans()
+                                logger.info(f"Batch {batch_idx + 1}/{len(batches)} completed successfully")
+                            else:
+                                failed_batches += 1
+                                increment_failed_scans()
+                                logger.error(f"Batch {batch_idx + 1}/{len(batches)} failed: {error}")
+                        except Exception as e:
+                            failed_batches += 1
+                            increment_failed_scans()
+                            logger.error(f"Batch {batch_idx + 1}/{len(batches)} encountered error: {str(e)}")
+                
+                scan_duration = time.time() - scan_start_time
+                set_scan_duration(scan_duration)
+                logger.info(f"Scan completed in {scan_duration:.2f}s - Success: {successful_batches}/{len(batches)} batches")
 
             scan_frequency = float(os.getenv('SCAN_FREQUENCY', '36000'))
             logger.info("Sleeping for %s seconds", scan_frequency)

@@ -18,6 +18,16 @@ metric_results = prometheus_client.Gauge("nmap_scan_results",
 metric_info = prometheus_client.Info("nmap_scan_stats",
                                      "Holds details about the scan")
 
+# Observability metrics
+metric_target_count = prometheus_client.Gauge("nmap_target_count",
+                                              "Number of targets discovered for scanning")
+metric_scan_duration = prometheus_client.Gauge("nmap_scan_duration_seconds",
+                                               "Duration of the last scan in seconds")
+metric_failed_scans = prometheus_client.Counter("nmap_failed_scans_total",
+                                                "Total number of failed scan batches")
+metric_successful_scans = prometheus_client.Counter("nmap_successful_scans_total",
+                                                    "Total number of successful scan batches")
+
 # Exposes results of the scan in Prometheus format
 def expose_nmap_scan_results(nm):
     list_scanned_items = []
@@ -40,3 +50,16 @@ def expose_nmap_scan_stats(nm):
 def start_prometheus_server(exporter_port):
     prometheus_client.start_http_server(exporter_port)
     print(f"Prometheus HTTP server started on port {exporter_port}")
+
+# Observability metric setters
+def set_target_count(count):
+    metric_target_count.set(count)
+
+def set_scan_duration(duration):
+    metric_scan_duration.set(duration)
+
+def increment_failed_scans():
+    metric_failed_scans.inc()
+
+def increment_successful_scans():
+    metric_successful_scans.inc()

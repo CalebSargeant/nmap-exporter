@@ -1,0 +1,16 @@
+ name: Autobots
+ on:
+   workflow_dispatch:  # Manual trigger
+#   schedule:
+#     - cron: '17 4 * * *'  # Daily at 04:17 UTC
+
+ jobs:
+   rollout:
+     uses: CalebSargeant/reusable-workflows/.github/workflows/dependabot-generator.yaml@main
+     # Optional: if your org sets restrictive defaults, grant the job permissions here
+     permissions:
+       contents: write
+       pull-requests: write
+     secrets:
+       RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+       RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
