@@ -1,0 +1,33 @@
+# Prometheus scrape configuration for nmap-exporter
+#
+# For 700 hosts scanning common ports with -sV (service detection):
+# - Expected scan time: 30-60 minutes per full scan cycle
+# - Set scrape_interval to match or exceed your SCAN_FREQUENCY
+# - scrape_timeout should be reasonable but not too long
+#
+# Recommended SCAN_FREQUENCY for 700 hosts:
+# - Conservative: 3600s (1 hour) - allows time for scan completion
+# - Moderate: 7200s (2 hours) - safer for slower networks
+# - Daily scans: 86400s (24 hours)
+
+scrape_configs:
+  - job_name: 'nmap-exporter'
+    # Scrape interval should be shorter than SCAN_FREQUENCY to catch updates
+    # but long enough to not waste resources on unchanged data
+    scrape_interval: 60s
+    scrape_timeout: 30s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['localhost:9808']  # Replace with your exporter host:port
+        labels:
+          environment: 'production'  # Optional: add environment label
+          # cloud: 'aws'  # Optional: if scanning specific cloud provider
+
+  # Alternative configuration with longer scrape interval
+  # Use this if you're running infrequent scans (e.g., every few hours)
+  # - job_name: 'nmap-exporter-hourly'
+  #   scrape_interval: 5m
+  #   scrape_timeout: 30s
+  #   metrics_path: '/metrics'
+  #   static_configs:
+  #     - targets: ['localhost:9808']

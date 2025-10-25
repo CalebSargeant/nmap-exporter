@@ -1,0 +1,36 @@
+name: Docker Build and Push
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for the image'
+        required: false
+        type: string
+
+jobs:
+  build:
+    name: Build and Push Docker Image
+    uses: calebsargeant/reusable-workflows/.github/workflows/docker-bake-ghcr.yaml@acbd4815df212b00171377ef543ca9bf1b9c0daa # main
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    with:
+      bake_file: docker-bake.hcl
+      bake_target: nmap-exporter
+      push_target: nmap-exporter-push
+      image_name: nmap-exporter
+      platforms: linux/amd64,linux/arm64
+      push: ${{ github.event_name != 'pull_request' }}
+      enable_sbom: false
+    secrets:
+      registry_password: ${{ secrets.GITHUB_TOKEN }}
