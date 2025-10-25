@@ -6,7 +6,7 @@
 
  jobs:
    rollout:
-     uses: CalebSargeant/reusable-workflows/.github/workflows/dependabot-generator.yaml@main
+     uses: CalebSargeant/reusable-workflows/.github/workflows/dependabot-generator.yaml@e6698d51693cb4a781d490fda43644e7f301c483 # v1.0.4
      # Optional: if your org sets restrictive defaults, grant the job permissions here
      permissions:
        contents: write
