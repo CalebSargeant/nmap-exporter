@@ -8,9 +8,10 @@ Tests the enricher with real API calls (or simulated if offline).
 import asyncio
 import sys
 import os
+from pathlib import Path
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, str(Path(__file__).parent))
 
 from modules.geoip_enricher import GeoIPEnricher
 
