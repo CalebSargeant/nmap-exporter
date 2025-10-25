@@ -14,6 +14,7 @@ This Docker application sets up the Nmap Prometheus Exporter, a versatile Python
 -   **Cross-Platform**: Platform-independent codebase ensuring compatibility with various operating systems.
 -   **Automated Scanning**: Regularly scans a list of target IP addresses by dynamically fetching from Azure or a file.
 -   **Prometheus Integration**: Exposes scan results and statistics as Prometheus metrics for easy monitoring and alerting.
+-   **GeoIP Enrichment**: Optionally enrich scan results with network intelligence metadata (ISP, ASN, location, connection type).
 -   **Customizable**: Easily configure the scan frequency, target file, and Prometheus port.
 -   **Efficient**: Uses the Nmap library for efficient and comprehensive network scanning.
 -   **Open Source**: Licensed under the MIT License for community contribution and collaboration.
@@ -95,6 +96,45 @@ TARGET_SOURCE=file
 TARGET_FILE=/app/portscanip.nmap
 SCAN_FREQUENCY=36000
 EXPORTER_PORT=9808
+```
+
+### GeoIP Enrichment (Optional)
+
+The exporter can optionally enrich scan results with network intelligence metadata (ISP, ASN, location, connection type) from GeoIP APIs.
+
+**Configuration:**
+
+```bash
+# Enable GeoIP enrichment
+GEOIP_ENABLED=true
+
+# GeoIP provider (currently supports: ipapi.co)
+GEOIP_PROVIDER=ipapi.co
+
+# Cache TTL in seconds (default: 86400 = 24 hours)
+GEOIP_CACHE_TTL=86400
+
+# Optional API token for the GeoIP provider
+GEOIP_API_TOKEN=your_api_token_here
+```
+
+**Features:**
+- Automatically enriches each scanned IP with ASN, ISP, country, city, and inferred connection type
+- Caches results to avoid rate limits and redundant API calls
+- Exposes enriched data as additional Prometheus metric labels
+- Provides `/debug/geoip` endpoint for viewing cached enrichment data
+
+**Connection Type Inference:**
+The enricher automatically infers connection type based on ISP/ASN patterns:
+- `mobile` - Mobile/LTE networks (Vodafone, T-Mobile, Verizon, etc.)
+- `datacentre` - Cloud/hosting providers (AWS, Azure, Google Cloud, etc.)
+- `fibre` - Fiber networks (FTTH, FTTP)
+- `dsl` - DSL/ADSL/VDSL connections
+- `unknown` - Unrecognized patterns
+
+**Example enriched metric:**
+```
+nmap_scan_results_geoip{host="8.8.8.8",protocol="tcp",name="http",product_detected="",isp="Google LLC",asn="AS15169",country="US",city="Mountain View",connection_type="datacentre"} 80
 ```
 
 
