@@ -10,6 +10,10 @@ variable "VERSION" {
   default = "latest"
 }
 
+variable "PLATFORMS" {
+  default = "linux/amd64,linux/arm64"
+}
+
 group "default" {
   targets = ["nmap-exporter"]
 }
@@ -21,7 +25,7 @@ target "nmap-exporter" {
     "${REGISTRY}/${IMAGE_NAME}:${VERSION}",
     "${REGISTRY}/${IMAGE_NAME}:latest"
   ]
-  platforms = ["linux/amd64", "linux/arm64"]
+  platforms = split(",", PLATFORMS)
 }
 
 target "nmap-exporter-push" {
