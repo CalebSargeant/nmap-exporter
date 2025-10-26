@@ -18,14 +18,13 @@ group "default" {
   targets = ["nmap-exporter"]
 }
 
+target "docker-metadata-action" {}
+
 target "nmap-exporter" {
+  inherits   = ["docker-metadata-action"]
   context    = "."
   dockerfile = "Dockerfile"
-  tags = [
-    "${REGISTRY}/${IMAGE_NAME}:${VERSION}",
-    "${REGISTRY}/${IMAGE_NAME}:latest"
-  ]
-  platforms = split(",", PLATFORMS)
+  platforms  = split(",", PLATFORMS)
 }
 
 target "nmap-exporter-push" {
