@@ -7,6 +7,7 @@ import os
 import json
 import nmap
 import logging
+import asyncio
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from modules.ip_fetcher import fetch_azure_ips, fetch_ips_from_file, fetch_aws_ips
 from modules.prometheus_format import (
@@ -18,6 +19,7 @@ from modules.prometheus_format import (
     increment_failed_scans,
     increment_successful_scans
 )
+from modules.geoip_enricher import GeoIPEnricher
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -47,6 +49,24 @@ def main():
             print(content)
 
         nm = nmap.PortScanner()
+        
+        # Initialize GeoIP enricher if enabled
+        geoip_enabled = os.getenv('GEOIP_ENABLED', 'false').lower() == 'true'
+        geoip_enricher = None
+        
+        if geoip_enabled:
+            geoip_provider = os.getenv('GEOIP_PROVIDER', 'ipapi.co')
+            geoip_cache_ttl = int(os.getenv('GEOIP_CACHE_TTL', '86400'))  # Default 24 hours
+            geoip_api_token = os.getenv('GEOIP_API_TOKEN')
+            
+            geoip_enricher = GeoIPEnricher(
+                provider=geoip_provider,
+                cache_ttl=geoip_cache_ttl,
+                api_token=geoip_api_token
+            )
+            logger.info("GeoIP enrichment enabled")
+        else:
+            logger.info("GeoIP enrichment disabled")
 
         while True:
             # Fetch targets based on the selected source
@@ -118,6 +138,10 @@ def main():
                 successful_batches = 0
                 failed_batches = 0
                 
+                # Collect all unique IPs from scan results for GeoIP enrichment
+                all_scan_ips = set()
+                batch_results = []
+                
                 # Scan batches concurrently
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {executor.submit(scan_batch, batch, nm, nmap_ports, nmap_args): idx 
@@ -128,7 +152,14 @@ def main():
                         try:
                             nm_result, error = future.result()
                             if nm_result:
-                                expose_nmap_scan_results(nm_result)
+                                # Store results for later processing
+                                batch_results.append(nm_result)
+                                
+                                # Collect IPs for GeoIP enrichment
+                                if geoip_enricher:
+                                    for host in nm_result.all_hosts():
+                                        all_scan_ips.add(host)
+                                
                                 expose_nmap_scan_stats(nm_result)
                                 successful_batches += 1
                                 increment_successful_scans()
@@ -141,6 +172,27 @@ def main():
                             failed_batches += 1
                             increment_failed_scans()
                             logger.error(f"Batch {batch_idx + 1}/{len(batches)} encountered error: {str(e)}")
+                
+                # Perform GeoIP enrichment if enabled
+                geoip_data = None
+                if geoip_enricher and all_scan_ips:
+                    logger.info(f"Enriching {len(all_scan_ips)} IPs with GeoIP data...")
+                    try:
+                        # Run async enrichment in sync context
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        geoip_data = loop.run_until_complete(
+                            geoip_enricher.enrich_batch(list(all_scan_ips))
+                        )
+                        loop.close()
+                        logger.info(f"GeoIP enrichment completed for {len(geoip_data)} IPs")
+                    except Exception as e:
+                        logger.error(f"GeoIP enrichment failed: {str(e)}")
+                        geoip_data = None
+                
+                # Now expose results with GeoIP data
+                for nm_result in batch_results:
+                    expose_nmap_scan_results(nm_result, geoip_data)
                 
                 scan_duration = time.time() - scan_start_time
                 set_scan_duration(scan_duration)
@@ -159,5 +211,21 @@ def main():
 if __name__ == '__main__':
     # Pass the desired port as an argument when calling the function
     EXPORTER_PORT = int(os.getenv('EXPORTER_PORT', '9808'))
-    start_prometheus_server(EXPORTER_PORT)
+    
+    # Initialize GeoIP enricher if enabled (for debug endpoint)
+    geoip_enabled = os.getenv('GEOIP_ENABLED', 'false').lower() == 'true'
+    geoip_enricher = None
+    
+    if geoip_enabled:
+        geoip_provider = os.getenv('GEOIP_PROVIDER', 'ipapi.co')
+        geoip_cache_ttl = int(os.getenv('GEOIP_CACHE_TTL', '86400'))
+        geoip_api_token = os.getenv('GEOIP_API_TOKEN')
+        
+        geoip_enricher = GeoIPEnricher(
+            provider=geoip_provider,
+            cache_ttl=geoip_cache_ttl,
+            api_token=geoip_api_token
+        )
+    
+    start_prometheus_server(EXPORTER_PORT, geoip_enricher)
     main()

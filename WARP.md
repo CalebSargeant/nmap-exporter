@@ -41,9 +41,11 @@ Key commands
   docker run --rm -p 9808:9808 --env-file .env nmap-exporter:dev
   ```
 
-- Grafana dashboard (from README)
+- Grafana dashboard
   ```bash path=null start=null
-  DATASOURCE="YOUR_DS_NAME" ; sed "s/PROMETHEUS_DS_PLACEHOLDER/$DATASOURCE/g" dashboard_template.json > nmap-exporter-dashboard.json
+  # Import the pre-built dashboard from grafana-dashboards/nmap-exporter-dashboard.json
+  # No sed commands needed - uses Grafana's datasource variable system
+  # See grafana-dashboards/README.md for detailed import instructions
   ```
 
 - Tests/linting
@@ -92,6 +94,13 @@ Configuration (env vars)
   ```bash path=null start=null
   AWS_CREDENTIALS='[{"AWS_ACCESS_KEY_ID":"...","AWS_SECRET_ACCESS_KEY":"...","AWS_PROFILE_NAME":"default","AWS_REGIONS":["eu-west-1"]}]'
   ```
+- GeoIP enrichment (optional)
+  ```bash path=null start=null
+  GEOIP_ENABLED=true             # Enable GeoIP enrichment
+  GEOIP_PROVIDER=ipapi.co        # Provider (currently supports ipapi.co)
+  GEOIP_CACHE_TTL=86400          # Cache TTL in seconds (default: 24 hours)
+  GEOIP_API_TOKEN=...            # Optional API token for provider
+  ```
 - Multiple credentials: pass arrays with multiple objects in the same JSON env as above.
 
 Prometheus integration
@@ -114,6 +123,8 @@ Observability tips
   ```bash path=null start=null
   # Service results (labels: host, protocol, name, product_detected)
   nmap_scan_results
+  # GeoIP-enriched results (includes isp, asn, country, city, connection_type)
+  nmap_scan_results_geoip
   # Scan stats (labels embedded as Info kv pairs)
   nmap_scan_stats
   # NEW: Observability metrics
