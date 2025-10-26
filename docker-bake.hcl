@@ -18,7 +18,10 @@ group "default" {
   targets = ["nmap-exporter"]
 }
 
+target "docker-metadata-action" {}
+
 target "nmap-exporter" {
+  inherits   = ["docker-metadata-action"]
   context    = "."
   dockerfile = "Dockerfile"
   tags       = ["${REGISTRY}/${IMAGE_NAME}:${VERSION}"]
