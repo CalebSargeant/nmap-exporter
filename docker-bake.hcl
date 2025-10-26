@@ -21,14 +21,13 @@ group "default" {
 target "nmap-exporter" {
   context    = "."
   dockerfile = "Dockerfile"
-  tags = [
-    "${REGISTRY}/${IMAGE_NAME}:${VERSION}",
-    "${REGISTRY}/${IMAGE_NAME}:latest"
-  ]
-  platforms = split(",", PLATFORMS)
+  tags       = ["${REGISTRY}/${IMAGE_NAME}:${VERSION}"]
+  platforms  = split(",", PLATFORMS)
 }
 
 target "nmap-exporter-push" {
-  inherits = ["nmap-exporter"]
-  output   = ["type=registry"]
+  inherits  = ["nmap-exporter"]
+  tags      = ["${REGISTRY}/${IMAGE_NAME}:${VERSION}"]
+  platforms = split(",", PLATFORMS)
+  output    = ["type=registry"]
 }
