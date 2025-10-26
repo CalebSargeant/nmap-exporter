@@ -14,6 +14,7 @@ This Docker application sets up the Nmap Prometheus Exporter, a versatile Python
 -   **Cross-Platform**: Platform-independent codebase ensuring compatibility with various operating systems.
 -   **Automated Scanning**: Regularly scans a list of target IP addresses by dynamically fetching from Azure or a file.
 -   **Prometheus Integration**: Exposes scan results and statistics as Prometheus metrics for easy monitoring and alerting.
+-   **GeoIP Enrichment**: Optionally enrich scan results with network intelligence metadata (ISP, ASN, location, connection type).
 -   **Customizable**: Easily configure the scan frequency, target file, and Prometheus port.
 -   **Efficient**: Uses the Nmap library for efficient and comprehensive network scanning.
 -   **Open Source**: Licensed under the MIT License for community contribution and collaboration.
@@ -97,6 +98,45 @@ SCAN_FREQUENCY=36000
 EXPORTER_PORT=9808
 ```
 
+### GeoIP Enrichment (Optional)
+
+The exporter can optionally enrich scan results with network intelligence metadata (ISP, ASN, location, connection type) from GeoIP APIs.
+
+**Configuration:**
+
+```bash
+# Enable GeoIP enrichment
+GEOIP_ENABLED=true
+
+# GeoIP provider (currently supports: ipapi.co)
+GEOIP_PROVIDER=ipapi.co
+
+# Cache TTL in seconds (default: 86400 = 24 hours)
+GEOIP_CACHE_TTL=86400
+
+# Optional API token for the GeoIP provider
+GEOIP_API_TOKEN=your_api_token_here
+```
+
+**Features:**
+- Automatically enriches each scanned IP with ASN, ISP, country, city, and inferred connection type
+- Caches results to avoid rate limits and redundant API calls
+- Exposes enriched data as additional Prometheus metric labels
+- Provides `/debug/geoip` endpoint for viewing cached enrichment data
+
+**Connection Type Inference:**
+The enricher automatically infers connection type based on ISP/ASN patterns:
+- `mobile` - Mobile/LTE networks (Vodafone, T-Mobile, Verizon, etc.)
+- `datacentre` - Cloud/hosting providers (AWS, Azure, Google Cloud, etc.)
+- `fibre` - Fiber networks (FTTH, FTTP)
+- `dsl` - DSL/ADSL/VDSL connections
+- `unknown` - Unrecognized patterns
+
+**Example enriched metric:**
+```
+nmap_scan_results_geoip{host="8.8.8.8",protocol="tcp",name="http",product_detected="",isp="Google LLC",asn="AS15169",country="US",city="Mountain View",connection_type="datacentre"} 80
+```
+
 
 ## Adding Prometheus Target and Alert Rules
 
@@ -165,57 +205,95 @@ yamlCopy code
 
 With these configurations in place, Prometheus will scrape metrics from your `nmap-prometheus-exporter`, and alerting rules will trigger alerts based on defined conditions. Customize the alerting rules to fit your monitoring needs.
 
-### Generate Grafana Dashboard
+## Grafana Dashboard
 
-To visualize the metrics collected by `nmap-prometheus-exporter` in Grafana, follow these steps:
+A comprehensive Grafana dashboard is available to visualize all metrics collected by `nmap-exporter`. The dashboard provides insights into:
 
-1.  Open your web browser and navigate to your Grafana instance's URL.
+- **Network Health**: Scan duration, target count, success/failure rates
+- **Security Status**: Open ports by host, port types distribution
+- **GeoIP Intelligence**: Connection types, geographic distribution, ISP/ASN information
+- **Scan Statistics**: Operational metrics and scan performance
 
-2.  Log in to Grafana if you're not already logged in.
+### Dashboard Features
 
-3.  Once logged in, click on the "Configuration" gear icon in the left sidebar.
+The dashboard includes the following panels:
 
-4.  In the Configuration menu, click on "Data Sources."
+1. **Overview Metrics**: Total targets, scan duration, successful/failed scans
+2. **Scan Statistics**: Detailed scan information (time elapsed, up/down hosts)
+3. **Port Analysis**: 
+   - Open ports distribution by host (donut chart)
+   - Port types distribution (donut chart)
+   - Detailed port scan results table
+4. **GeoIP Analysis** (when GeoIP enrichment is enabled):
+   - Connection types distribution (mobile, datacentre, fibre, DSL)
+   - Geographic distribution by country
+   - Enriched results table with ISP, ASN, country, city information
+5. **Time Series Graphs**:
+   - Scan duration over time
+   - Scan success/failure rate trends
 
-5.  You should now see a list of data sources configured in your Grafana instance.
+### Importing the Dashboard
 
-6.  Replace "YOUR_DS_NAME" with the Prometheus data source name where `nmap-prometheus-exporter`'s metrics are present in the following command:
+#### Method 1: Direct Import from File
 
-    bashCopy code
+1. **Download the Dashboard**: Get the dashboard JSON from the repository at `grafana-dashboards/nmap-exporter-dashboard.json`
 
-    `DATASOURCE="YOUR_DS_NAME" ; sed "s/PROMETHEUS_DS_PLACEHOLDER/$DATASOURCE/g" dashboard_template.json`
+2. **Access Grafana**: Log in to your Grafana instance
 
-    Run the command from the repository's root directory to generate the Grafana dashboard for the metrics.
+3. **Import Dashboard**:
+   - Click on the "+" icon in the left sidebar
+   - Select "Import dashboard"
+   - Click "Upload JSON file" and select `nmap-exporter-dashboard.json`
+   - Or copy and paste the JSON content directly
 
-7.  You can import this JSON directly to Grafana as a dashboard.
+4. **Configure Data Source**:
+   - Select your Prometheus data source from the dropdown
+   - Click "Import"
 
+5. **Select Cloud Filter** (optional):
+   - Use the "Cloud" dropdown at the top of the dashboard to filter by cloud provider
+   - Select "All" to view metrics from all sources
 
-### Importing Grafana Dashboard
+#### Method 2: Import from GitHub
 
-1.  Log in to your Grafana instance if you're not already logged in.
+You can also import the dashboard directly from the raw GitHub URL:
 
-2.  In the left sidebar, click on the "Create" (⨁) icon and select "Dashboard."
+1. Navigate to **Dashboards** → **Import** in Grafana
+2. Use this URL in the "Import via grafana.com" field:
+   ```
+   https://raw.githubusercontent.com/CalebSargeant/nmap-exporter/main/grafana-dashboards/nmap-exporter-dashboard.json
+   ```
+3. Click "Load"
+4. Select your Prometheus data source
+5. Click "Import"
 
-3.  On the new dashboard screen, click on "Import" in the upper right corner.
+### Dashboard Variables
 
-4.  You will be prompted to provide a Grafana.com Dashboard URL or JSON file. Since we generated a JSON file earlier, select "Upload .json File."
+The dashboard uses the following variables:
 
-5.  Click on "Upload .json File," and then choose the JSON file generated from the previous step (usually named `nmap-exporter-dashboard.json`).
+- **DS_PROMETHEUS**: Automatically populated with your Prometheus datasource
+- **cloud**: Filter to select which cloud provider's metrics to display (e.g., "aws", "azure", or "All")
 
-6.  After selecting the JSON file, click "Open" or "Upload" to proceed.
+### Customizing the Dashboard
 
-7.  Grafana will automatically parse the JSON file and create a new dashboard based on the configuration.
+After importing, you can customize the dashboard:
 
-8.  Once the dashboard is imported, you can customize it further by adding additional panels, modifying queries, or adjusting the layout to suit your monitoring needs.
+- Adjust time ranges using the time picker in the top-right
+- Modify panel queries to focus on specific metrics
+- Add additional panels for custom visualizations
+- Set up alerts based on specific thresholds
 
-9.  Save the dashboard by clicking on the floppy disk icon or by pressing `Ctrl + S` (or `Cmd + S` on macOS).
+### Metrics Reference
 
-10.  Finally, you can access and view your newly imported dashboard from the Grafana home screen or the dashboard list.
+The dashboard visualizes the following Prometheus metrics:
 
-
-Now you have successfully imported the Grafana dashboard that visualizes the metrics collected by the `nmap-prometheus-exporter` into your Grafana instance.
-
-Remember to adapt the configuration to your specific environment and requirements.
+- `nmap_scan_results` - Basic scan results (host, port, protocol, service, product)
+- `nmap_scan_results_geoip` - GeoIP-enriched results (includes ISP, ASN, country, city, connection type)
+- `nmap_scan_stats_info` - Scan statistics (time elapsed, up/down hosts)
+- `nmap_target_count` - Number of targets discovered
+- `nmap_scan_duration_seconds` - Duration of the last scan
+- `nmap_successful_scans_total` - Total successful scan batches (counter)
+- `nmap_failed_scans_total` - Total failed scan batches (counter)
 
 ## License
 
