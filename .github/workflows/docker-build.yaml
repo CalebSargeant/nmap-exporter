@@ -19,7 +19,7 @@ on:
 jobs:
   build:
     name: Build and Push Docker Image
-    uses: calebsargeant/reusable-workflows/.github/workflows/docker-bake-ghcr.yaml@85d2546853b270bb1b21e884d3ee51785641ca9e # v1.0.7
+    uses: calebsargeant/reusable-workflows/.github/workflows/docker-bake-ghcr.yaml@e80e589028ec8fed746926eaa9278122e0064b70 # v1.0.8
     permissions:
       contents: read
       packages: write
