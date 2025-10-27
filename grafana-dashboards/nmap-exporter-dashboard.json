@@ -90,7 +90,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "nmap_target_count{cloud=~\"$cloud\"}",
+          "expr": "nmap_target_count",
           "refId": "A"
         }
       ],
@@ -157,7 +157,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "nmap_scan_duration_seconds{cloud=~\"$cloud\"}",
+          "expr": "nmap_scan_duration_seconds",
           "refId": "A"
         }
       ],
@@ -216,7 +216,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "nmap_successful_scans_total{cloud=~\"$cloud\"}",
+          "expr": "nmap_successful_scans_total",
           "refId": "A"
         }
       ],
@@ -279,7 +279,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "nmap_failed_scans_total{cloud=~\"$cloud\"}",
+          "expr": "nmap_failed_scans_total",
           "refId": "A"
         }
       ],
@@ -339,7 +339,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "nmap_scan_stats_info{cloud=~\"$cloud\"}",
+          "expr": "nmap_scan_stats_info",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -358,7 +358,6 @@
             },
             "indexByName": {},
             "renameByName": {
-              "cloud": "Cloud",
               "downhosts": "Down Hosts",
               "time_elapsed": "Time Elapsed (s)",
               "totalhosts": "Total Hosts",
@@ -430,12 +429,12 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "count(nmap_scan_results{cloud=~\"$cloud\"}) by (host)",
-          "legendFormat": "{{host}}",
+          "expr": "count(nmap_scan_results{target=~\"$target\"}) by (target)",
+          "legendFormat": "{{target}}",
           "refId": "A"
         }
       ],
-      "title": "Open Ports by Host",
+      "title": "Open Ports by Target",
       "type": "piechart"
     },
     {
@@ -499,7 +498,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "count(nmap_scan_results{cloud=~\"$cloud\"}) by (name)",
+          "expr": "count(nmap_scan_results{target=~\"$target\"}) by (name)",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -584,7 +583,7 @@
         "sortBy": [
           {
             "desc": false,
-            "displayName": "HOST"
+            "displayName": "TARGET"
           }
         ]
       },
@@ -595,7 +594,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "nmap_scan_results{cloud=~\"$cloud\"}",
+          "expr": "nmap_scan_results{target=~\"$target\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -615,8 +614,8 @@
             "indexByName": {},
             "renameByName": {
               "Value": "PORT",
-              "cloud": "CLOUD",
-              "host": "HOST",
+              "target": "TARGET",
+              "host": "IP",
               "name": "SERVICE",
               "product_detected": "PRODUCT",
               "protocol": "PROTOCOL"
@@ -687,7 +686,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "count(nmap_scan_results_geoip{cloud=~\"$cloud\"}) by (connection_type)",
+          "expr": "count(nmap_scan_results_geoip{target=~\"$target\"}) by (connection_type)",
           "legendFormat": "{{connection_type}}",
           "refId": "A"
         }
@@ -756,7 +755,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "count(nmap_scan_results_geoip{cloud=~\"$cloud\"}) by (country)",
+          "expr": "count(nmap_scan_results_geoip{target=~\"$target\"}) by (country)",
           "legendFormat": "{{country}}",
           "refId": "A"
         }
@@ -841,7 +840,7 @@
         "sortBy": [
           {
             "desc": false,
-            "displayName": "HOST"
+            "displayName": "TARGET"
           }
         ]
       },
@@ -852,7 +851,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "nmap_scan_results_geoip{cloud=~\"$cloud\"}",
+          "expr": "nmap_scan_results_geoip{target=~\"$target\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -874,10 +873,10 @@
               "Value": "PORT",
               "asn": "ASN",
               "city": "CITY",
-              "cloud": "CLOUD",
               "connection_type": "CONNECTION TYPE",
               "country": "COUNTRY",
-              "host": "HOST",
+              "target": "TARGET",
+              "host": "IP",
               "isp": "ISP",
               "name": "SERVICE",
               "product_detected": "PRODUCT",
@@ -968,7 +967,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "nmap_scan_duration_seconds{cloud=~\"$cloud\"}",
+          "expr": "nmap_scan_duration_seconds",
           "legendFormat": "Scan Duration",
           "refId": "A"
         }
@@ -1087,7 +1086,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(nmap_successful_scans_total{cloud=~\"$cloud\"}[5m])",
+          "expr": "rate(nmap_successful_scans_total[5m])",
           "legendFormat": "Successful Scans",
           "refId": "A"
         },
@@ -1096,7 +1095,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(nmap_failed_scans_total{cloud=~\"$cloud\"}[5m])",
+          "expr": "rate(nmap_failed_scans_total[5m])",
           "legendFormat": "Failed Scans",
           "refId": "B"
         }
@@ -1144,21 +1143,21 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(nmap_scan_results,cloud)",
+        "definition": "label_values(nmap_scan_results,target)",
         "hide": 0,
         "includeAll": true,
-        "label": "Cloud",
-        "multi": false,
-        "name": "cloud",
+        "label": "Target",
+        "multi": true,
+        "name": "target",
         "options": [],
         "query": {
-          "query": "label_values(nmap_scan_results,cloud)",
+          "query": "label_values(nmap_scan_results,target)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
-        "sort": 0,
+        "sort": 1,
         "type": "query"
       }
     ]
